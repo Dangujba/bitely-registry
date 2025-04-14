@@ -1,0 +1,23 @@
+[package]
+name = "Bitely"
+version = "0.1.0"
+
+[dependencies]
+clap = { version = "4.5.36", features = ["derive"] }
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+indicatif = "0.17"
+base64 = "0.21"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+zip = "0.6.5"
+tempfile = "3.5"
+walkdir = "2.3.3"
+semver = "1.0"
+colored = "2.1"
+
+[profile.release]
+opt-level = "z"        # Optimize for size
+lto = true             # Link Time Optimization
+codegen-units = 1      # Better optimization
+panic = "abort"        # Smaller binary, disables backtrace
+strip = true           # Automatically strip symbols (nightly only, optional)
