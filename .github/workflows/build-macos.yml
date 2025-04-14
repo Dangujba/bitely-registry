@@ -83,8 +83,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.target != 'x86_64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64 g++-mingw-w64
-          sudo apt-get install -y clang
+          sudo apt-get install -y gcc-mingw-w64 g++-mingw-w64 clang
           rustup target add ${{ matrix.target }}
 
       - name: 🛠️ Install Cross-Compilation Tools (Windows)
@@ -106,9 +105,10 @@ jobs:
 
       - name: 📦 Build Release Binary
         run: cargo build --release --target ${{ matrix.target }}
-        continue-on-error: true  # Allow build to fail for cross-compilation
+        continue-on-error: true  # Allow cross-compilation failures
 
-      - name: 🧪 Test Binary
+      - name: 🧪 Test Binary (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
           if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
             ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
@@ -116,6 +116,19 @@ jobs:
           else
             echo "Binary not built, skipping tests"
           fi
+        env:
+          BITE_MODULES: ./test-modules
+
+      - name: 🧪 Test Binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          if (Test-Path "./target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
+            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
+            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
+          } else {
+            Write-Output "Binary not built, skipping tests"
+          }
         env:
           BITE_MODULES: ./test-modules
 
