@@ -46,18 +46,30 @@ jobs:
 
       - name: 📦 Build Release Binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --no-default-features --verbose || {
+          # Remove --no-default-features if not required.
+          cargo build --release --target ${{ matrix.target }} --verbose || {
             echo "Build failed, check logs above for details"
             exit 1
           }
 
-      - name: List Build Output
-        run: ls -la ./target/${{ matrix.target }}/release/
+      - name: List Build Output (Non-Windows)
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "Listing contents of ./target/${{ matrix.target }}/release/"
+          ls -la ./target/${{ matrix.target }}/release/
+
+      - name: List Build Output (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Output "Listing contents of .\target\${{ matrix.target }}\release\"
+          Get-ChildItem -Path ".\target\${{ matrix.target }}\release\" -Force
 
       - name: 🧪 Test Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
           if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
+            echo "Binary found, running tests..."
             ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
             ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
           else
@@ -72,8 +84,9 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path "./target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
+            Write-Output "Binary found, running tests..."
+            .\target\${{ matrix.target }}\release\${{ matrix.artifact }} config
+            .\target\${{ matrix.target }}\release\${{ matrix.artifact }} search --offline
           } else {
             Write-Output "Binary not found, skipping tests"
             exit 0
@@ -85,6 +98,7 @@ jobs:
         if: matrix.package == 'tar.gz'
         run: |
           if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
+            echo "Packaging binary..."
             tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
           else
             echo "Skipping packaging: binary not found"
@@ -95,6 +109,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path "target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
+            Write-Output "Packaging binary..."
             Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
           } else {
             Write-Output "Skipping packaging: binary not found"
