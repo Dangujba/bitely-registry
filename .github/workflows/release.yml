@@ -68,16 +68,24 @@ jobs:
 
       - name: 📦 Build Release Binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --no-default-features --verbose || {
+          cargo build --release --target ${{ matrix.target }} --verbose || {
             echo "Build failed, continuing to inspect"
-            ls -l target/${{ matrix.target }}/release 2>/dev/null || echo "Release directory empty"
+            if [ "${{ matrix.os }}" = "windows-latest" ]; then
+              dir target/${{ matrix.target }}/release 2>$null || echo "Release directory empty"
+            else
+              ls -l target/${{ matrix.target }}/release 2>/dev/null || echo "Release directory empty"
+            fi
           }
         continue-on-error: true
 
       - name: 🔍 Check Build Output
         run: |
           echo "Release directory contents:"
-          find target/${{ matrix.target }}/release -type f 2>/dev/null || echo "No files in release directory"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            Get-ChildItem -Path target/${{ matrix.target }}/release -File -ErrorAction SilentlyContinue || Write-Output "No files in release directory"
+          else
+            find target/${{ matrix.target }}/release -type f 2>/dev/null || echo "No files in release directory"
+          fi
 
       - name: 🧪 Test Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
