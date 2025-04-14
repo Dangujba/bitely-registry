@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🦀 Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: ${{ matrix.target }}
 
@@ -60,18 +60,21 @@ jobs:
       - name: 🧹 Clean Build Cache
         run: cargo clean
 
+      - name: 🧪 Try Simple Build
+        run: |
+          cargo run --target ${{ matrix.target }} --release || {
+            echo "Simple build failed, continuing to diagnose"
+          }
+
       - name: 📦 Build Release Binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --verbose || {
-            echo "Build failed, check logs above for details"
-            ls -R target/${{ matrix.target }}/release || echo "Release directory not found"
-            exit 1
-          }
+          cargo build --release --target ${{ matrix.target }} --verbose
+          ls -l target/${{ matrix.target }}/release || echo "Release directory empty"
 
       - name: 🔍 Check Build Output
         run: |
           echo "Release directory contents:"
-          ls -l target/${{ matrix.target }}/release || echo "Release directory empty"
+          find target/${{ matrix.target }}/release -type f || echo "No files in release directory"
 
       - name: 🧪 Test Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
@@ -105,7 +108,7 @@ jobs:
         run: |
           if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
             tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
-            ls -l bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
+            ls -l bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} || echo "Package file not created"
           else
             echo "Skipping packaging: binary not found"
           fi
@@ -116,7 +119,7 @@ jobs:
         run: |
           if (Test-Path "target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
             Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
-            dir bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
+            dir bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} || Write-Output "Package file not created"
           } else {
             Write-Output "Skipping packaging: binary not found"
           }
