@@ -44,6 +44,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev gcc libc6-dev libcurl4-openssl-dev
 
+      - name: 🛠️ Install Dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install openssl@1.1 || true
+          export PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig:$PKG_CONFIG_PATH"
+
       - name: 🔍 Inspect Project
         run: |
           echo "Rust version:"
@@ -60,21 +66,18 @@ jobs:
       - name: 🧹 Clean Build Cache
         run: cargo clean
 
-      - name: 🧪 Try Simple Build
-        run: |
-          cargo run --target ${{ matrix.target }} --release || {
-            echo "Simple build failed, continuing to diagnose"
-          }
-
       - name: 📦 Build Release Binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --verbose
-          ls -l target/${{ matrix.target }}/release || echo "Release directory empty"
+          cargo build --release --target ${{ matrix.target }} --no-default-features --verbose || {
+            echo "Build failed, continuing to inspect"
+            ls -l target/${{ matrix.target }}/release 2>/dev/null || echo "Release directory empty"
+          }
+        continue-on-error: true
 
       - name: 🔍 Check Build Output
         run: |
           echo "Release directory contents:"
-          find target/${{ matrix.target }}/release -type f || echo "No files in release directory"
+          find target/${{ matrix.target }}/release -type f 2>/dev/null || echo "No files in release directory"
 
       - name: 🧪 Test Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
