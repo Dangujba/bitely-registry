@@ -42,12 +42,24 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev gcc
+          sudo apt-get install -y pkg-config libssl-dev gcc libc6-dev
+
+      - name: 🔍 Inspect Environment
+        run: |
+          echo "Rust version:"
+          rustc --version
+          echo "Cargo version:"
+          cargo --version
+          echo "Target:"
+          echo ${{ matrix.target }}
+          echo "Directory contents:"
+          ls -R
 
       - name: 📦 Build Release Binary
         run: |
           cargo build --release --target ${{ matrix.target }} --no-default-features --verbose || {
             echo "Build failed, check logs above for details"
+            ls -R target/${{ matrix.target }}/release || echo "Release directory not found"
             exit 1
           }
 
@@ -83,6 +95,7 @@ jobs:
         run: |
           if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
             tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
+            ls -l bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
           else
             echo "Skipping packaging: binary not found"
           fi
@@ -93,6 +106,7 @@ jobs:
         run: |
           if (Test-Path "target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
             Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
+            dir bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
           } else {
             Write-Output "Skipping packaging: binary not found"
           }
