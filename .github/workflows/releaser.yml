@@ -14,21 +14,21 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact: bitely
+            artifact: Bitely # <-- Change 'bitely' to 'Bitely'
             package: tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: bitely.exe
+            artifact: bitely.exe # <-- Keep this as is (Windows filenames are often lowercase, confirm actual output)
             package: zip
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact: bitely
+            artifact: Bitely # <-- Change 'bitely' to 'Bitely'
             package: tar.gz
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact: bitely
+            artifact: Bitely # <-- Change 'bitely' to 'Bitely'
             package: tar.gz
-
+ 
     steps:
       - name: 🧾 Checkout source
         uses: actions/checkout@v4
