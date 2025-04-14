@@ -1,32 +1,88 @@
-name: Build macOS App
+name: Build and Release Cross-Platform
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # allows manual trigger
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: bitely
+            package: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: bitely.exe
+            package: zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: bitely
+            package: tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: bitely
+            package: tar.gz
 
     steps:
       - name: 🧾 Checkout source
         uses: actions/checkout@v4
 
       - name: 🦀 Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
+          targets: ${{ matrix.target }}
+
+      - name: 🛠️ Install OpenSSL (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: 📦 Build Release Binary
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: 🧪 Test Binary
+        run: |
+          ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
+          ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
+        env:
+          BITE_MODULES: ./test-modules
+
+      - name: 📦 Package (Linux/macOS)
+        if: matrix.package == 'tar.gz'
+        run: tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
+
+      - name: 📦 Package (Windows)
+        if: matrix.package == 'zip'
+        shell: pwsh
+        run: Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
 
       - name: 📤 Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: easybite-macos
-          path: target/release/easybite
+          name: bitely-${{ matrix.target }}
+          path: bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
+
+      - name: 🚀 Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
+          body: |
+            Bitely v0.1.0 for ${{ matrix.target }}.
+            Install instructions:
+            ${{ matrix.os == 'windows-latest' && '```powershell' || '```bash' }}
+            curl -L https://github.com/<your-username>/bitely/releases/download/v0.1.0/bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} | ${{ matrix.package == 'tar.gz' && 'tar -xz -C /usr/local/bin' || 'Expand-Archive -DestinationPath $env:LOCALAPPDATA\\Programs\\Bitely' }}
+            ${{ matrix.os == 'windows-latest' && '$env:Path += ";$env:LOCALAPPDATA\\Programs\\Bitely"' || '' }}
+            ${{ matrix.os == 'windows-latest' && '[Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::User)' || '' }}
+            ${{ matrix.os == 'windows-latest' && '```' || '```' }}
