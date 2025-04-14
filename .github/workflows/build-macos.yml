@@ -11,53 +11,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-pc-windows-msvc
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
         include:
-          # ubuntu-latest
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact: bitely
             package: tar.gz
-          - os: ubuntu-latest
-            target: x86_64-pc-windows-msvc
-            artifact: bitely.exe
-            package: zip
-          - os: ubuntu-latest
-            target: x86_64-apple-darwin
-            artifact: bitely
-            package: tar.gz
-          - os: ubuntu-latest
-            target: aarch64-apple-darwin
-            artifact: bitely
-            package: tar.gz
-          # windows-latest
           - os: windows-latest
-            target: x86_64-unknown-linux-gnu
-            artifact: bitely
-            package: tar.gz
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact: bitely.exe
-            package: zip
-          - os: windows-latest
-            target: x86_64-apple-darwin
-            artifact: bitely
-            package: tar.gz
-          - os: windows-latest
-            target: aarch64-apple-darwin
-            artifact: bitely
-            package: tar.gz
-          # macos-latest
-          - os: macos-latest
-            target: x86_64-unknown-linux-gnu
-            artifact: bitely
-            package: tar.gz
-          - os: macos-latest
             target: x86_64-pc-windows-msvc
             artifact: bitely.exe
             package: zip
@@ -79,85 +38,35 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: 🛠️ Install Cross-Compilation Tools (Linux)
-        if: matrix.os == 'ubuntu-latest' && matrix.target != 'x86_64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc g++ gcc-mingw-w64 g++-mingw-w64 clang lld
-          rustup target add ${{ matrix.target }}
-
-      - name: 🛠️ Install Cross-Compilation Tools (Windows)
-        if: matrix.os == 'windows-latest' && matrix.target != 'x86_64-pc-windows-msvc'
-        shell: pwsh
-        run: |
-          choco install mingw llvm -y
-          rustup target add ${{ matrix.target }}
-
-      - name: 🛠️ Install Cross-Compilation Tools (macOS)
-        if: matrix.os == 'macos-latest' && matrix.target != 'x86_64-apple-darwin' && matrix.target != 'aarch64-apple-darwin'
-        run: |
-          brew install gcc mingw-w64
-          rustup target add ${{ matrix.target }}
-
       - name: 🛠️ Install OpenSSL (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: 📦 Build Release Binary
-        run: cargo build --release --target ${{ matrix.target }} --no-default-features
-        continue-on-error: true  # Allow cross-compilation failures
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - name: 🧪 Test Binary (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: 🧪 Test Binary
         run: |
-          if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
-          else
-            echo "Binary not built, skipping tests"
-          fi
-        env:
-          BITE_MODULES: ./test-modules
-
-      - name: 🧪 Test Binary (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          if (Test-Path "./target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
-            ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
-          } else {
-            Write-Output "Binary not built, skipping tests"
-          }
+          ./target/${{ matrix.target }}/release/${{ matrix.artifact }} config
+          ./target/${{ matrix.target }}/release/${{ matrix.artifact }} search --offline
         env:
           BITE_MODULES: ./test-modules
 
       - name: 📦 Package (Linux/macOS)
         if: matrix.package == 'tar.gz'
-        run: |
-          if [ -f "./target/${{ matrix.target }}/release/${{ matrix.artifact }}" ]; then
-            tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
-          else
-            echo "Skipping packaging: binary not found"
-          fi
+        run: tar -C target/${{ matrix.target }}/release -czf bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }} ${{ matrix.artifact }}
 
       - name: 📦 Package (Windows)
         if: matrix.package == 'zip'
         shell: pwsh
-        run: |
-          if (Test-Path "target/${{ matrix.target }}/release/${{ matrix.artifact }}") {
-            Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
-          } else {
-            Write-Output "Skipping packaging: binary not found"
-          }
+        run: Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.artifact }} -DestinationPath bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
 
       - name: 📤 Upload Build Artifact
         uses: actions/upload-artifact@v4
-        if: matrix.package != ''
         with:
           name: bitely-${{ matrix.target }}
           path: bitely-v0.1.0-${{ matrix.target }}.${{ matrix.package }}
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
       - name: 🚀 Release
         uses: softprops/action-gh-release@v2
