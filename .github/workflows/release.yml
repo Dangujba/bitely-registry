@@ -42,26 +42,36 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev gcc libc6-dev
+          sudo apt-get install -y pkg-config libssl-dev gcc libc6-dev libcurl4-openssl-dev
 
-      - name: 🔍 Inspect Environment
+      - name: 🔍 Inspect Project
         run: |
           echo "Rust version:"
           rustc --version
           echo "Cargo version:"
           cargo --version
-          echo "Target:"
-          echo ${{ matrix.target }}
+          echo "Cargo.toml contents:"
+          cat Cargo.toml || echo "Cargo.toml not found"
+          echo "src/main.rs contents:"
+          cat src/main.rs || echo "src/main.rs not found"
           echo "Directory contents:"
           ls -R
 
+      - name: 🧹 Clean Build Cache
+        run: cargo clean
+
       - name: 📦 Build Release Binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --no-default-features --verbose || {
+          cargo build --release --target ${{ matrix.target }} --verbose || {
             echo "Build failed, check logs above for details"
             ls -R target/${{ matrix.target }}/release || echo "Release directory not found"
             exit 1
           }
+
+      - name: 🔍 Check Build Output
+        run: |
+          echo "Release directory contents:"
+          ls -l target/${{ matrix.target }}/release || echo "Release directory empty"
 
       - name: 🧪 Test Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
