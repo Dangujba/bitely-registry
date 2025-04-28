@@ -28,6 +28,10 @@ jobs:
             target: aarch64-apple-darwin
             artifact: Bitely
             package: tar.gz
+          - os: self-hosted
+            target: generic-unknown
+            artifact: Bitely
+            package: tar.gz
 
     steps:
       - name: 🧾 Checkout source
@@ -39,10 +43,33 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: 🛠️ Install Dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'self-hosted'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev gcc
+          if [ -f /etc/os-release ]; then
+            source /etc/os-release
+            case $ID in
+              ubuntu|debian)
+                sudo apt-get update
+                sudo apt-get install -y pkg-config libssl-dev gcc
+                ;;
+              fedora)
+                sudo dnf install -y pkg-config libssl-devel gcc
+                ;;
+              centos|rhel)
+                sudo yum install -y pkg-config openssl-devel gcc
+                ;;
+              arch)
+                sudo pacman -Sy --noconfirm pkg-config openssl gcc
+                ;;
+              *)
+                echo "Unsupported Linux distribution: $ID"
+                exit 1
+                ;;
+            esac
+          else
+            echo "Unable to detect Linux distribution."
+            exit 1
+          fi
 
       - name: 📦 Build Release Binary
         run: |
