@@ -23,7 +23,7 @@
 Bitely is included automatically when installing EasyBite via the `.msi` installer.
 
 ### macOS / Linux
-1. Download the latest binary from the [Releases page](https://github.com/Dangujba/bite-registry/releases).
+1. Download the latest binary from the [Releases page](https://github.com/Dangujba/bitely-registry/releases).
 2. Extract and move to a directory in your `PATH`:
    ```bash
    tar xzf bitely-v0.1.0.tar.gz
